@@ -13,3 +13,8 @@ std = []
 [dependencies]
 ocr-identity = { workspace = true }
 ocr-crypto = { workspace = true }
+# The TS 33.220 generic KDF used for K_ASME is HMAC-SHA-256. Both are
+# `default-features = false` so the crate still builds on wasm32-unknown-unknown
+# with no OS entropy or clock (ocr-crypto pulls the same two for SUCI).
+sha2 = { workspace = true }
+hmac = { workspace = true }

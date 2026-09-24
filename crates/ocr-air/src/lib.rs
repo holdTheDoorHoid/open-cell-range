@@ -104,7 +104,10 @@ impl Default for UeCapabilities {
 }
 
 /// The phone. Holds its identities and which cell it is currently camped on.
-#[derive(Clone, Debug)]
+///
+/// `UeCapabilities`'s own `Default` is the non-trivial one (everything allowed);
+/// `Ue` can therefore derive `Default` and inherit it.
+#[derive(Clone, Debug, Default)]
 pub struct Ue {
     pub capabilities: UeCapabilities,
     pub camped_on: Option<CellId>,
@@ -114,18 +117,6 @@ pub struct Ue {
     pub imsi_leaked: bool,
     /// Set when a null cipher / null NAS algorithm was accepted.
     pub null_cipher_active: bool,
-}
-
-impl Default for Ue {
-    fn default() -> Self {
-        Self {
-            capabilities: UeCapabilities::default(),
-            camped_on: None,
-            camped_rat: None,
-            imsi_leaked: false,
-            null_cipher_active: false,
-        }
-    }
 }
 
 /// The legitimate core network side (home keys live here, in the simulation).

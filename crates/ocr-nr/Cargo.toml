@@ -13,3 +13,5 @@ std = []
 [dependencies]
 ocr-identity = { workspace = true }
 ocr-crypto = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }

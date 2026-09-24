@@ -255,16 +255,20 @@ dependencies = [
 name = "ocr-lte"
 version = "0.1.0"
 dependencies = [
+ "hmac",
  "ocr-crypto",
  "ocr-identity",
+ "sha2",
 ]
 
 [[package]]
 name = "ocr-nr"
 version = "0.1.0"
 dependencies = [
+ "hmac",
  "ocr-crypto",
  "ocr-identity",
+ "sha2",
 ]
 
 [[package]]

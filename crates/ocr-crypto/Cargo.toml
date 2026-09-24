@@ -16,6 +16,6 @@ ctr = { workspace = true }
 cmac = { workspace = true }
 sha2 = { workspace = true }
 hmac = { workspace = true }
-# The SUCI Profile A curve (x25519-dalek) is added by the crypto implementer when
-# wiring ECIES; it is already available in [workspace.dependencies]. Left out of
-# the baseline so the initial `cargo build` is green with no backend-feature care.
+# The SUCI Profile A curve. `default-features = false` + `static_secrets` keeps it
+# off OS entropy (no getrandom) so the crate still builds on wasm32-unknown-unknown.
+x25519-dalek = { workspace = true }

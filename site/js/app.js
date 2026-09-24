@@ -1,9 +1,12 @@
 // app.js — the only file that imports the engine. Flip this line to swap the
-// JavaScript reference engine for the real wasm one (see ENGINE-API.md).
-import { createEngine } from './engine-mock.js';
-// import { createEngine } from './engine-wasm.js';
+// real wasm engine for the JavaScript reference one (see ENGINE-API.md).
+import { createEngine } from './engine-wasm.js';
+// import { createEngine } from './engine-mock.js';
 
-const engine = createEngine();
+// engine-wasm.js loads the WebAssembly module and, if it is not present (e.g. a
+// checkout with no `site/pkg` build), transparently falls back to the reference
+// engine, so this await resolves either way.
+const engine = await createEngine();
 const $ = (id) => document.getElementById(id);
 
 const TRACK_ORDER = ['2g', '4g', '5g', 'defend'];

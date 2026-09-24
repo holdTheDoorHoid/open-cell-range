@@ -3,26 +3,69 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
   <title>Open Cell Range</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <a class="skip-link" href="#catalogue-heading">Skip to drills</a>
+
   <header>
     <h1>Open Cell Range</h1>
     <p class="tag">A virtual range for cellular attacks — and for catching them. Nothing here transmits.</p>
+
+    <details id="about">
+      <summary>About this simulation — read before you start</summary>
+      <div class="about-body">
+        <p><strong>This is a pure simulation.</strong> The radio world is a data structure in
+          memory. Nothing is transmitted, received, or measured — there is no SDR, no
+          baseband, no SIM, no antenna, and no code path that could drive any of those.</p>
+        <p>It is built on published, standardised knowledge: the GSM one-way-authentication
+          problem, the LTEInspector / aLTEr family of pre-authentication weaknesses, and the
+          5G-AKA linkability results — all documented in open standards and peer-reviewed
+          research. Subscriber keys are the published 3GPP test vectors; no real subscriber
+          keys exist anywhere in this project.</p>
+        <p>It is defence-first: every attack drill has a matching defender drill, and the
+          same passive-monitor logic that raises a finding here is what a real detector
+          (like <a href="https://github.com/EFForg/rayhunter" target="_blank" rel="noopener">Rayhunter</a>)
+          would conclude from the same air.</p>
+        <p>
+          <a href="https://github.com/holdTheDoorHoid/open-cell-range/blob/main/docs/ETHICS.md" target="_blank" rel="noopener">Read the full ethics note</a>
+        </p>
+      </div>
+    </details>
+
+    <ol class="arc" aria-hidden="true">
+      <li><span class="arc-step">2G</span><small>one-way auth</small></li>
+      <li class="arc-arrow">→</li>
+      <li><span class="arc-step">4G</span><small>mutual auth, gaps survive</small></li>
+      <li class="arc-arrow">→</li>
+      <li><span class="arc-step">5G</span><small>SUCI fixes it — mostly</small></li>
+      <li class="arc-arrow">→</li>
+      <li><span class="arc-step">Defend</span><small>same air, monitor's side</small></li>
+    </ol>
   </header>
 
   <main>
-    <nav id="scenarios" aria-label="Drills"></nav>
+    <section id="catalogue" aria-labelledby="catalogue-heading">
+      <h2 id="catalogue-heading">Choose a drill</h2>
+      <p class="catalogue-hint">Each generation tries to fix the last one's headline flaw. Every
+        one still leaks somewhere except where the fix is doing its job — that contrast is the
+        point. Drills run the real (simulated) attack against a real (simulated) air; a flag is
+        only earned when the world actually reaches that state.</p>
+      <div id="scenario-groups"></div>
+    </section>
 
-    <section id="stage" hidden>
+    <section id="stage" hidden aria-labelledby="stage-title">
       <h2 id="stage-title"></h2>
       <p id="stage-brief" class="brief"></p>
 
       <div class="controls">
-        <button id="run">Run the attack</button>
-        <button id="reset" class="secondary">Reset</button>
+        <button id="run" type="button"></button>
+        <button id="reset" class="secondary" type="button">Reset this drill</button>
       </div>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
 
       <div class="panels">
         <div class="panel">
@@ -37,19 +80,19 @@
         </div>
         <div class="panel">
           <h3>What a monitor sees</h3>
-          <ul id="findings"></ul>
+          <ul id="findings" aria-live="polite"></ul>
         </div>
       </div>
 
       <div class="panel flags">
         <h3>Flags</h3>
-        <ul id="flags"></ul>
+        <ul id="flags" aria-live="polite"></ul>
       </div>
     </section>
   </main>
 
   <footer>
-    <p>Simulation for defensive education. <a href="https://github.com/holdTheDoorHoid/open-cell-range">Source</a> · GPLv3.</p>
+    <p>Simulation for defensive education. <a href="https://github.com/holdTheDoorHoid/open-cell-range">Source</a> · GPLv3 · <a href="https://github.com/holdTheDoorHoid/open-cell-range/blob/main/docs/ETHICS.md">Ethics note</a></p>
   </footer>
 
   <script type="module" src="js/app.js"></script>

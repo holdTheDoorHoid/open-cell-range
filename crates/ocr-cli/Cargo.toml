@@ -11,7 +11,11 @@ name = "ocr"
 path = "src/main.rs"
 
 [dependencies]
+ocr-crypto = { workspace = true }
 ocr-identity = { workspace = true }
+ocr-gsm = { workspace = true }
+ocr-lte = { workspace = true }
+ocr-nr = { workspace = true }
 ocr-air = { workspace = true }
 ocr-detect = { workspace = true }
 ocr-scenario = { workspace = true }

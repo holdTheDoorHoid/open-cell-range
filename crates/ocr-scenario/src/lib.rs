@@ -34,7 +34,8 @@ use alloc::vec::Vec;
 
 use ocr_air::{CellBehavior, Rat, World};
 use ocr_attack::{
-    Attacker, Downgrader, ImsiCatcher2g, ImsiCatcher4g, NullCipherForcer, SuciNullExploit,
+    Attacker, Downgrader, ImsiCatcher2g, ImsiCatcher4g, ImsiPager4g, LinkabilityProbe5g,
+    NullCipherForcer, SuciNullExploit,
 };
 use ocr_detect::{FindingKind, Monitor};
 
@@ -74,10 +75,14 @@ pub enum ScenarioId {
     Lte4gImsiCatch,
     /// 4G: bidding-down from LTE to GSM.
     Lte4gDowngrade,
+    /// 4G: confirm a specific subscriber is present by paging on the IMSI.
+    Lte4gPaging,
     /// 5G: SUCI defeats the cleartext request — the fix, shown working.
     Nr5gSuciProtects,
     /// 5G: the null protection scheme undoes the fix.
     Nr5gNullScheme,
+    /// 5G: the AKA failure-message linkability oracle links a challenge to a target.
+    Nr5gLinkability,
     /// Defender track: run a monitor over an attacked world and raise the finding.
     DefendSpotTheCatcher,
 }
@@ -91,8 +96,10 @@ impl ScenarioId {
             Gsm2gNullCipher,
             Lte4gImsiCatch,
             Lte4gDowngrade,
+            Lte4gPaging,
             Nr5gSuciProtects,
             Nr5gNullScheme,
+            Nr5gLinkability,
             DefendSpotTheCatcher,
         ]
     }
@@ -105,8 +112,10 @@ impl ScenarioId {
             Gsm2gNullCipher => "gsm-2g-null-cipher",
             Lte4gImsiCatch => "lte-4g-imsi-catch",
             Lte4gDowngrade => "lte-4g-downgrade",
+            Lte4gPaging => "lte-4g-paging",
             Nr5gSuciProtects => "nr-5g-suci-protects",
             Nr5gNullScheme => "nr-5g-null-scheme",
+            Nr5gLinkability => "nr-5g-linkability",
             DefendSpotTheCatcher => "defend-spot-the-catcher",
         }
     }
@@ -117,8 +126,8 @@ impl ScenarioId {
         use ScenarioId::*;
         match self {
             Gsm2gImsiCatch | Gsm2gNullCipher => "2g",
-            Lte4gImsiCatch | Lte4gDowngrade => "4g",
-            Nr5gSuciProtects | Nr5gNullScheme => "5g",
+            Lte4gImsiCatch | Lte4gDowngrade | Lte4gPaging => "4g",
+            Nr5gSuciProtects | Nr5gNullScheme | Nr5gLinkability => "5g",
             DefendSpotTheCatcher => "defend",
         }
     }
@@ -174,6 +183,8 @@ impl Scenario {
             Gsm2gNullCipher => NullCipherForcer.run(&mut self.world),
             Lte4gImsiCatch => ImsiCatcher4g.run(&mut self.world),
             Lte4gDowngrade => Downgrader.run(&mut self.world),
+            Lte4gPaging => ImsiPager4g.run(&mut self.world),
+            Nr5gLinkability => LinkabilityProbe5g.run(&mut self.world),
             Nr5gSuciProtects => {
                 // Point an NR identity-catcher at a properly configured (Profile A)
                 // network. The catcher out-signals the real cell and the UE camps
@@ -300,6 +311,33 @@ pub fn build(id: ScenarioId) -> Scenario {
                 flags,
             )
         }
+        Lte4gPaging => {
+            let mut world = World::new();
+            world.add_legit(Rat::Lte, -70);
+            world.step(BASELINE_STEP_US);
+            let flags = vec![flag(
+                "presence-confirmed",
+                "Confirm the target is present",
+                "A network should page by a temporary id; paging by the permanent IMSI \
+                 tells a listener a specific subscriber is in the cell.",
+                // The presence-confirmation tell is what a Rayhunter-class monitor
+                // concludes from the same air: an IMSI page. The identity content
+                // never leaks — only the fact that this subscriber is here.
+                Box::new(|_: &World, m: &Monitor| {
+                    m.findings()
+                        .iter()
+                        .any(|f| f.kind == FindingKind::ImsiPaging)
+                }),
+            )];
+            (
+                "Confirm a target is nearby",
+                "Page a phone by its permanent identity and watch the network give away \
+                 that a specific subscriber is here — the ToRPEDO/PIERCER presence-\
+                 confirmation pattern.",
+                world,
+                flags,
+            )
+        }
         Nr5gSuciProtects => {
             // Profile A is the World default; keep it, and camp on the real 5G cell.
             let mut world = World::new();
@@ -337,6 +375,34 @@ pub fn build(id: ScenarioId) -> Scenario {
                 "Undo SUCI with the null scheme",
                 "A network configured for the null protection scheme sends the SUPI in \
                  the clear anyway.",
+                world,
+                flags,
+            )
+        }
+        Nr5gLinkability => {
+            let mut world = World::new();
+            world.add_legit(Rat::Nr, -60);
+            world.step(BASELINE_STEP_US);
+            let flags = vec![flag(
+                "target-linked",
+                "Link the challenge to its subscriber",
+                "The two failure causes are distinguishable on the air — one means \
+                 'not my key', the other 'my key, wrong sequence', which confirms the \
+                 challenge belonged to this subscriber.",
+                // SUCI conceals the identity, so nothing leaks the SUPI; the tell is
+                // the AKA failure-message oracle, which the monitor raises when it
+                // sees both a MAC failure and a synch failure on one RAT.
+                Box::new(|_: &World, m: &Monitor| {
+                    m.findings()
+                        .iter()
+                        .any(|f| f.kind == FindingKind::LinkabilityProbe)
+                }),
+            )];
+            (
+                "Is this challenge theirs?",
+                "Replay a captured authentication challenge. How the phone rejects it — \
+                 wrong key versus stale sequence number — reveals whether that challenge \
+                 was hers. SUCI hides the identity; the failure message does not.",
                 world,
                 flags,
             )
@@ -561,6 +627,91 @@ mod tests {
                 assert_ne!(a.slug(), b.slug(), "duplicate slug");
             }
         }
-        assert_eq!(ids.len(), 7);
+        assert_eq!(ids.len(), 9);
+    }
+
+    #[test]
+    fn new_drills_have_the_specified_slugs_and_tracks() {
+        assert_eq!(ScenarioId::Lte4gPaging.slug(), "lte-4g-paging");
+        assert_eq!(ScenarioId::Lte4gPaging.track(), "4g");
+        assert_eq!(ScenarioId::Nr5gLinkability.slug(), "nr-5g-linkability");
+        assert_eq!(ScenarioId::Nr5gLinkability.track(), "5g");
+    }
+
+    #[test]
+    fn lte_4g_paging_confirms_presence() {
+        let (w, states) = run_and_evaluate(ScenarioId::Lte4gPaging);
+        // The phone answered the page, confirming it is in this cell.
+        assert_eq!(w.world.ue.camped_rat, Some(Rat::Lte));
+        // Presence, not the identity itself — the IMSI content never leaked.
+        assert!(
+            !w.world.ue.imsi_leaked,
+            "paging confirms presence, it does not leak the identity"
+        );
+        // The intended finding is raised from the same air.
+        let mut mon = Monitor::new();
+        mon.observe_all(w.world.events());
+        assert!(
+            mon.findings()
+                .iter()
+                .any(|f| f.kind == FindingKind::ImsiPaging),
+            "the monitor must flag IMSI paging"
+        );
+        assert!(captured(&states, "presence-confirmed"));
+    }
+
+    #[test]
+    fn benign_world_does_not_confirm_presence() {
+        // Control: a legitimate LTE network never pages by IMSI, so there is no
+        // presence-confirmation finding to raise.
+        let mut world = World::new();
+        world.add_legit(Rat::Lte, -70);
+        world.step(BASELINE_STEP_US);
+        let mut mon = Monitor::new();
+        mon.observe_all(world.events());
+        assert!(
+            !mon.findings()
+                .iter()
+                .any(|f| f.kind == FindingKind::ImsiPaging),
+            "a benign world must not raise IMSI paging"
+        );
+    }
+
+    #[test]
+    fn nr_5g_linkability_links_the_target() {
+        let (w, states) = run_and_evaluate(ScenarioId::Nr5gLinkability);
+        assert_eq!(w.world.ue.camped_rat, Some(Rat::Nr));
+        // SUCI conceals the SUPI — only the failure message links, not the identity.
+        assert!(
+            !w.world.ue.imsi_leaked,
+            "SUCI conceals the SUPI; only the failure cause links the challenge"
+        );
+        // The intended finding is raised from the same air.
+        let mut mon = Monitor::new();
+        mon.observe_all(w.world.events());
+        assert!(
+            mon.findings()
+                .iter()
+                .any(|f| f.kind == FindingKind::LinkabilityProbe),
+            "the monitor must flag the linkability oracle"
+        );
+        assert!(captured(&states, "target-linked"));
+    }
+
+    #[test]
+    fn benign_world_does_not_link() {
+        // Control: a legitimate NR registration produces at most one AKA failure
+        // type (none here), so the linkability oracle is never flagged.
+        let mut world = World::new();
+        world.add_legit(Rat::Nr, -60);
+        world.step(BASELINE_STEP_US);
+        let mut mon = Monitor::new();
+        mon.observe_all(world.events());
+        assert!(
+            !mon.findings()
+                .iter()
+                .any(|f| f.kind == FindingKind::LinkabilityProbe),
+            "a benign world must not raise a linkability probe"
+        );
     }
 }

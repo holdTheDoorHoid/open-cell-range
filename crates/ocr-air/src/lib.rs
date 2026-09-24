@@ -36,6 +36,14 @@
 //! - [`CellBehavior::Downgrader`] — sends an unprotected pre-auth reject so the UE
 //!   reselects away; with a lower-RAT catcher present and downgrade allowed, that
 //!   is bidding-down.
+//! - [`CellBehavior::ImsiPager`] — an LTE cell that pages by the permanent IMSI
+//!   instead of a temporary id, confirming a specific subscriber is present
+//!   (ToRPEDO/PIERCER). A monitor reads this as `ImsiPaging`; nothing leaks the
+//!   IMSI content, so [`Ue::imsi_leaked`] stays false.
+//! - [`CellBehavior::LinkabilityProbe`] — an NR cell that replays captured AKA
+//!   challenges; the UE's failure cause (MAC vs synch) links a replayed `AUTN` to
+//!   a subscriber while the SUCI still conceals the identity, so
+//!   [`Ue::imsi_leaked`] stays false and the tell is the pair of failures.
 //!
 //! The ergonomic constructors an attacker uses:
 //!
@@ -161,6 +169,18 @@ pub enum CellBehavior {
     /// Sends an unprotected pre-auth reject to push the UE off this cell — the
     /// bidding-down lever.
     Downgrader,
+    /// Pages the UE by its permanent identity (IMSI) instead of a temporary one.
+    /// A phone in the cell answers, so the page confirms a *specific* subscriber
+    /// is present — the 4G ToRPEDO/PIERCER presence-confirmation pattern. Modelled
+    /// on LTE (the only RAT whose paging this project carries); on other RATs the
+    /// cell runs its ordinary exchange.
+    ImsiPager,
+    /// Replays captured authentication challenges and reads how the UE rejects
+    /// them: a MAC failure ("not this key") versus a synch failure ("this key,
+    /// stale counter") links a replayed AUTN to a specific subscriber even though
+    /// the SUCI conceals the identity — the 5G AKA failure-message linkability
+    /// oracle. Modelled on NR; on other RATs the cell runs its ordinary exchange.
+    LinkabilityProbe,
 }
 
 /// A cell tower in the world. `signal_dbm` is the lever selection turns on;
@@ -617,7 +637,9 @@ impl World {
         };
 
         match behavior {
-            CellBehavior::Legit => {
+            // ImsiPager/LinkabilityProbe are LTE/NR attacks with no GSM meaning,
+            // so a GSM cell carrying one simply runs the honest exchange.
+            CellBehavior::Legit | CellBehavior::ImsiPager | CellBehavior::LinkabilityProbe => {
                 // Established context: the network already knows the subscriber,
                 // so it authenticates (with a real triplet), uses a real cipher,
                 // and never asks for the IMSI. Nothing permanent hits the air.
@@ -716,6 +738,34 @@ impl World {
                 Payload::LteRrc(LteRrcMessage::ConnectionReject { wait_time: 16 }),
             );
             return Camp::Rejected;
+        }
+
+        if behavior == CellBehavior::ImsiPager {
+            // Presence confirmation (ToRPEDO/PIERCER): a well-behaved network pages
+            // by a temporary id (S-TMSI); paging by the permanent IMSI lets any
+            // listener learn a *specific* subscriber is in this cell. The UE, being
+            // present, answers the page and camps. Nothing here reveals the IMSI
+            // *content* — the leak is the presence fact, which the monitor catches
+            // as `ImsiPaging`.
+            self.emit(
+                Rat::Lte,
+                cid,
+                Direction::NetToUe,
+                Payload::LteNas(LteNasMessage::Paging { by_imsi: true }),
+            );
+            self.emit(
+                Rat::Lte,
+                cid,
+                Direction::UeToNet,
+                Payload::LteRrc(LteRrcMessage::ConnectionRequest),
+            );
+            self.emit(
+                Rat::Lte,
+                cid,
+                Direction::NetToUe,
+                Payload::LteRrc(LteRrcMessage::ConnectionSetup),
+            );
+            return Camp::Camped;
         }
 
         self.emit(
@@ -926,6 +976,95 @@ impl World {
             Direction::NetToUe,
             Payload::NrRrc(NrRrcMessage::Setup),
         );
+
+        if behavior == CellBehavior::LinkabilityProbe {
+            // The AKA failure-message linkability oracle (Borgaonkar et al.; TS
+            // 33.501 seam). The identity itself is concealed — the registration
+            // carries a properly concealed SUCI, so a passive observer recovers no
+            // SUPI — but the *failure* to a replayed challenge still distinguishes
+            // one subscriber from another.
+            let suci = Suci::conceal(&self.supi, &self.home, self.suci_scheme, 0, &mut self.rng);
+            self.emit(
+                Rat::Nr,
+                cid,
+                Direction::UeToNet,
+                Payload::NrNas(NrNasMessage::RegistrationRequest {
+                    suci: Some(suci),
+                    guti: None,
+                }),
+            );
+
+            // The UE's stored SQN_MS the two replayed challenges are checked against.
+            let expected = sqn6(self.net_sqn);
+
+            // Replay 1 — the *target's own* captured challenge: built under the real
+            // subscriber key but with a stale SQN. The UE's key verifies the MAC, so
+            // the AUTN really is hers, but the counter is old → a SYNCH failure that
+            // says "this challenge is mine".
+            let mut rand_hers = [0u8; 16];
+            self.rng.fill_bytes(&mut rand_hers);
+            let hers = five_g_aka_vector(&self.k, &self.op_c, &rand_hers, &sqn6(0), &AMF, &plmn);
+            self.emit(
+                Rat::Nr,
+                cid,
+                Direction::NetToUe,
+                Payload::NrNas(NrNasMessage::AuthenticationRequest {
+                    rand: hers.rand,
+                    autn: hers.autn,
+                }),
+            );
+            let resp_hers = match ue_authenticate(
+                &self.k, &self.op_c, &hers.rand, &hers.autn, &expected, &plmn,
+            ) {
+                UeAuthResponse::Response { res_star } => {
+                    NrNasMessage::AuthenticationResponse { res_star }
+                }
+                UeAuthResponse::Failure(AuthenticationFailure { cause, auts }) => {
+                    NrNasMessage::AuthenticationFailure { cause, auts }
+                }
+            };
+            self.emit(Rat::Nr, cid, Direction::UeToNet, Payload::NrNas(resp_hers));
+
+            // Replay 2 — a *different* subscriber's captured challenge: built under a
+            // key this UE does not hold. The MAC does not verify → a MAC failure that
+            // says "not mine". The two distinguishable answers are the oracle.
+            let mut rand_foreign = [0u8; 16];
+            self.rng.fill_bytes(&mut rand_foreign);
+            let foreign =
+                five_g_aka_vector(&WRONG_K, &self.op_c, &rand_foreign, &sqn6(0), &AMF, &plmn);
+            self.emit(
+                Rat::Nr,
+                cid,
+                Direction::NetToUe,
+                Payload::NrNas(NrNasMessage::AuthenticationRequest {
+                    rand: foreign.rand,
+                    autn: foreign.autn,
+                }),
+            );
+            let resp_foreign = match ue_authenticate(
+                &self.k,
+                &self.op_c,
+                &foreign.rand,
+                &foreign.autn,
+                &expected,
+                &plmn,
+            ) {
+                UeAuthResponse::Response { res_star } => {
+                    NrNasMessage::AuthenticationResponse { res_star }
+                }
+                UeAuthResponse::Failure(AuthenticationFailure { cause, auts }) => {
+                    NrNasMessage::AuthenticationFailure { cause, auts }
+                }
+            };
+            self.emit(
+                Rat::Nr,
+                cid,
+                Direction::UeToNet,
+                Payload::NrNas(resp_foreign),
+            );
+
+            return Camp::Camped;
+        }
 
         // Registration carries a SUCI concealed under the world's scheme. Under
         // the null scheme the "ciphertext" is the plaintext MSIN, so a passive
@@ -1379,6 +1518,67 @@ mod tests {
             &e.payload,
             Payload::LteNas(ocr_lte::LteNasMessage::AuthenticationFailureMacFailure)
         )));
+    }
+
+    #[test]
+    fn lte_imsi_pager_pages_by_imsi_and_camps() {
+        let mut w = World::new();
+        let rogue = w.add_rogue(Rat::Lte, -40, CellBehavior::ImsiPager);
+        w.step(1_000_000);
+
+        assert_eq!(w.ue.camped_on, Some(rogue));
+        assert_eq!(w.ue.camped_rat, Some(Rat::Lte));
+        // Presence confirmation does not reveal the IMSI content — only that a
+        // specific subscriber is here. The identity itself does not leak.
+        assert!(
+            !w.ue.imsi_leaked,
+            "paging confirms presence, it does not leak the id"
+        );
+        // The IMSI page is on the air for a monitor to catch.
+        assert!(w.events().iter().any(|e| matches!(
+            &e.payload,
+            Payload::LteNas(ocr_lte::LteNasMessage::Paging { by_imsi: true })
+        )));
+    }
+
+    #[test]
+    fn nr_linkability_probe_elicits_both_failure_causes() {
+        use ocr_nr::{AuthFailureCause, NrNasMessage};
+        let mut w = World::new();
+        let rogue = w.add_rogue(Rat::Nr, -40, CellBehavior::LinkabilityProbe);
+        w.step(1_000_000);
+
+        assert_eq!(w.ue.camped_on, Some(rogue));
+        assert_eq!(w.ue.camped_rat, Some(Rat::Nr));
+        // The SUCI still conceals the SUPI — the identity itself does not leak.
+        assert!(
+            !w.ue.imsi_leaked,
+            "the linkability oracle does not read the identity"
+        );
+        // Both distinguishable AKA failure causes appear on the air.
+        let saw_mac = w.events().iter().any(|e| {
+            matches!(
+                &e.payload,
+                Payload::NrNas(NrNasMessage::AuthenticationFailure {
+                    cause: AuthFailureCause::MacFailure,
+                    ..
+                })
+            )
+        });
+        let saw_sync = w.events().iter().any(|e| {
+            matches!(
+                &e.payload,
+                Payload::NrNas(NrNasMessage::AuthenticationFailure {
+                    cause: AuthFailureCause::SynchFailure,
+                    ..
+                })
+            )
+        });
+        assert!(saw_mac, "a foreign challenge must yield a MAC failure");
+        assert!(
+            saw_sync,
+            "the target's replayed challenge must yield a synch failure"
+        );
     }
 
     #[test]

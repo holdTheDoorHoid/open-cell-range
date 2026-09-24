@@ -433,11 +433,15 @@ mod tests {
     }
 
     #[test]
-    fn list_scenarios_returns_seven_entries_with_all_fields() {
+    fn list_scenarios_returns_every_entry_with_all_fields() {
         let engine = Engine::new();
         let v = parse(&engine.list_scenarios());
         let arr = v.as_array().expect("listScenarios is a JSON array");
-        assert_eq!(arr.len(), 7, "the range ships seven drills");
+        assert_eq!(
+            arr.len(),
+            ocr_scenario::ScenarioId::all().len(),
+            "listScenarios reflects every ScenarioId the engine ships"
+        );
         for s in arr {
             assert!(s["slug"].is_string());
             assert!(s["title"].is_string() && !s["title"].as_str().unwrap().is_empty());

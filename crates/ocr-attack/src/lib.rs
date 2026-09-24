@@ -212,6 +212,61 @@ impl Attacker for SuciNullExploit {
     }
 }
 
+/// 4G presence confirmation: a rogue/participating LTE cell pages the target by
+/// its permanent identity (IMSI) rather than a temporary one. A phone in the cell
+/// answers, so the page confirms a *specific* subscriber is present — the
+/// ToRPEDO/PIERCER pattern. Nothing here reads the IMSI content; the leak is the
+/// presence fact, caught by a passive monitor as `ImsiPaging`.
+///
+/// After `run`: the UE is camped on the rogue LTE cell (`camped_rat == Lte`), and
+/// a passive monitor over `world.events()` raises `FindingKind::ImsiPaging`.
+/// `ue.imsi_leaked` stays false — presence, not identity, is what leaked.
+#[derive(Default)]
+pub struct ImsiPager4g;
+
+impl Attacker for ImsiPager4g {
+    fn id(&self) -> &'static str {
+        "imsi_page_4g"
+    }
+    fn describe(&self) -> &'static str {
+        "Rogue LTE cell pages by IMSI to confirm a target is present"
+    }
+    fn run(&mut self, world: &mut World) {
+        let signal = dominating_signal(world);
+        world.add_rogue(Rat::Lte, signal, CellBehavior::ImsiPager);
+        world.step(STEP_US);
+    }
+}
+
+/// 5G linkability oracle: a rogue NR cell replays captured authentication
+/// challenges and reads how the target UE rejects them. The SUCI conceals the
+/// identity, but the AKA *failure message* does not — a MAC failure means "not
+/// this key" while a synch failure means "this key, stale counter", which links a
+/// replayed `AUTN` to a specific subscriber (Borgaonkar et al.; TS 33.501
+/// linkability seam). The cell replays two challenges — the target's own (real
+/// key, stale SQN → synch failure) and a foreign one (wrong key → MAC failure) —
+/// so both distinguishable answers appear on the air.
+///
+/// After `run`: the UE is camped on the rogue NR cell (`camped_rat == Nr`), a
+/// passive monitor over `world.events()` raises `FindingKind::LinkabilityProbe`,
+/// and `ue.imsi_leaked` stays false (the SUPI was never revealed).
+#[derive(Default)]
+pub struct LinkabilityProbe5g;
+
+impl Attacker for LinkabilityProbe5g {
+    fn id(&self) -> &'static str {
+        "linkability_probe_5g"
+    }
+    fn describe(&self) -> &'static str {
+        "Replay a captured AUTN and read the failure cause to link a subscriber"
+    }
+    fn run(&mut self, world: &mut World) {
+        let signal = dominating_signal(world);
+        world.add_rogue(Rat::Nr, signal, CellBehavior::LinkabilityProbe);
+        world.step(STEP_US);
+    }
+}
+
 /// Every actor the range ships, in 2G → 4G → 5G teaching order, for the sandbox
 /// picker and the scenario loader.
 pub fn all() -> Vec<Box<dyn Attacker>> {
@@ -220,7 +275,9 @@ pub fn all() -> Vec<Box<dyn Attacker>> {
         Box::new(NullCipherForcer),
         Box::new(ImsiCatcher4g),
         Box::new(Downgrader),
+        Box::new(ImsiPager4g),
         Box::new(SuciNullExploit),
+        Box::new(LinkabilityProbe5g),
     ]
 }
 
@@ -352,13 +409,15 @@ mod tests {
     #[test]
     fn all_lists_every_actor_with_unique_ids() {
         let actors = all();
-        assert_eq!(actors.len(), 5);
+        assert_eq!(actors.len(), 7);
         let ids: Vec<&str> = actors.iter().map(|a| a.id()).collect();
         assert!(ids.contains(&"imsi_catch_2g"));
         assert!(ids.contains(&"force_null_cipher"));
         assert!(ids.contains(&"imsi_catch_4g"));
         assert!(ids.contains(&"downgrade_lte_to_2g"));
         assert!(ids.contains(&"suci_null_scheme"));
+        assert!(ids.contains(&"imsi_page_4g"));
+        assert!(ids.contains(&"linkability_probe_5g"));
         // ids are unique
         for (i, a) in ids.iter().enumerate() {
             assert!(!ids[..i].contains(a), "duplicate actor id {a}");
@@ -420,6 +479,51 @@ mod tests {
                 .iter()
                 .any(|f| f.kind == FindingKind::NullCipherCommanded),
             "a passive monitor must flag the null cipher command"
+        );
+    }
+
+    #[test]
+    fn imsi_pager_4g_pages_and_monitor_flags_presence() {
+        let mut w = World::new();
+        w.add_legit(Rat::Lte, -60);
+        ImsiPager4g.run(&mut w);
+
+        assert_eq!(w.ue.camped_rat, Some(Rat::Lte));
+        assert!(camped_on_rogue(&w), "the UE must camp on the rogue pager");
+        // Presence confirmation does not leak the identity itself.
+        assert!(!w.ue.imsi_leaked, "paging confirms presence, not identity");
+
+        let mut mon = ocr_detect::Monitor::new();
+        mon.observe_all(w.events());
+        assert!(
+            mon.findings()
+                .iter()
+                .any(|f| f.kind == ocr_detect::FindingKind::ImsiPaging),
+            "a passive monitor must flag IMSI paging"
+        );
+    }
+
+    #[test]
+    fn linkability_probe_5g_flags_the_oracle() {
+        let mut w = World::new();
+        w.add_legit(Rat::Nr, -60);
+        LinkabilityProbe5g.run(&mut w);
+
+        assert_eq!(w.ue.camped_rat, Some(Rat::Nr));
+        assert!(camped_on_rogue(&w), "the UE must camp on the rogue probe");
+        // SUCI conceals the SUPI — only the failure message links, not the identity.
+        assert!(
+            !w.ue.imsi_leaked,
+            "the SUPI is never revealed by the oracle"
+        );
+
+        let mut mon = ocr_detect::Monitor::new();
+        mon.observe_all(w.events());
+        assert!(
+            mon.findings()
+                .iter()
+                .any(|f| f.kind == ocr_detect::FindingKind::LinkabilityProbe),
+            "a passive monitor must flag the linkability oracle"
         );
     }
 

@@ -16,3 +16,9 @@ ocr-gsm = { workspace = true }
 ocr-lte = { workspace = true }
 ocr-nr = { workspace = true }
 ocr-air = { workspace = true }
+
+[dev-dependencies]
+# Only the tests need this — to construct null-scheme and Profile A SUCI values
+# via the public conceal() API. The library itself depends only on the frozen
+# types above and never on ocr-crypto directly.
+ocr-crypto = { workspace = true }

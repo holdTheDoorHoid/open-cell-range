@@ -151,8 +151,10 @@ produce the same bytes on the wire, so flags are stable, bugs are reproducible, 
 capture replays identically on any machine. Every crate is `#![no_std]` + `alloc` with an
 optional `std` feature that only adds `std::error::Error` impls; this is what forces the
 "no clocks, no threads, no OS entropy" discipline and guarantees a clean
-`wasm32-unknown-unknown` build. `ocr-cli` and `ocr-wasm` are the only crates that may use
-`std`.
+`wasm32-unknown-unknown` build. The engine (library) crates are all `no_std`; only the
+host-side crates use `std`: `ocr-cli` and `ocr-import` (the native capture tools) and
+`ocr-wasm` (the browser bindings). `ocr-wasm` does not depend on `ocr-import`, so `std`
+never enters the wasm build.
 
 ### No real secrets, no real spectrum
 

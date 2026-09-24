@@ -164,7 +164,13 @@ impl<'a> Iterator for Pcap<'a> {
 
         let data_start = hdr_start + RECORD_HEADER_LEN;
         let want = incl_len as usize;
-        let data = match self.data.get(data_start..data_start + want) {
+        // `data_start + want` can overflow `usize` on a 32-bit target when
+        // `incl_len` is hostile (up to u32::MAX); compute the end with a checked
+        // add so the reader stays total on every target, not just 64-bit.
+        let data = match data_start
+            .checked_add(want)
+            .and_then(|end| self.data.get(data_start..end))
+        {
             Some(d) => d,
             None => {
                 // Distinguish "hostile huge length" from "file ends mid-record".

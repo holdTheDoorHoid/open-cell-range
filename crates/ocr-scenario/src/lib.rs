@@ -348,9 +348,20 @@ pub fn build(id: ScenarioId) -> Scenario {
                 "SUCI holds",
                 "Ask for the identity and read what comes back. Under Profile A it is \
                  concealed — the catcher learns nothing.",
-                // The fix, working: after the catcher runs, the identity STAYED
-                // protected — the SUPI never leaked.
-                Box::new(|w: &World, _: &Monitor| !w.ue.imsi_leaked),
+                // The fix, working: the catcher ACTUALLY RAN — the UE is camped
+                // on the rogue cell the attack stood up — and yet the identity
+                // stayed protected, so the SUPI never leaked. Requiring the rogue
+                // camp stops this flag from capturing in the clean baseline (or in
+                // a benign world that simply never leaks); a flag predicate may
+                // read Cell::legitimate (only the snapshot and the detector may
+                // not), and here it is what proves an attack was attempted.
+                Box::new(|w: &World, _: &Monitor| {
+                    !w.ue.imsi_leaked
+                        && w.ue
+                            .camped_on
+                            .and_then(|id| w.cells.iter().find(|c| c.id == id))
+                            .is_some_and(|c| !c.legitimate)
+                }),
             )];
             (
                 "SUCI does its job",
@@ -514,15 +525,34 @@ mod tests {
 
     #[test]
     fn nr_5g_suci_protects_does_not_leak() {
+        // Before the attack runs, the flag must NOT be captured: the clean
+        // baseline also has !imsi_leaked, so a flag that captured here would be
+        // testing the default state, not that SUCI resisted an actual catch.
+        let baseline = build(ScenarioId::Nr5gSuciProtects);
+        let empty = Monitor::new();
+        assert!(
+            !captured(&baseline.evaluate(&empty), "suci-holds"),
+            "suci-holds must not capture before the catcher has run"
+        );
+
         let (w, states) = run_and_evaluate(ScenarioId::Nr5gSuciProtects);
         assert!(
             !w.world.ue.imsi_leaked,
             "Profile A SUCI must conceal the SUPI — the fix, working"
         );
         assert_eq!(w.world.ue.camped_rat, Some(Rat::Nr));
+        // The catcher actually ran: the UE moved onto the rogue cell it stood up.
+        let camped = w.world.ue.camped_on.expect("UE is camped after the attack");
+        assert!(
+            w.world
+                .cells
+                .iter()
+                .any(|c| c.id == camped && !c.legitimate),
+            "the UE must have camped on the rogue catcher cell, not the real one"
+        );
         assert!(
             captured(&states, "suci-holds"),
-            "the flag captures the identity STAYING protected"
+            "the flag captures the identity STAYING protected under a real attack"
         );
     }
 

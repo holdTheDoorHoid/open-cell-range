@@ -35,6 +35,38 @@
       </div>
     </details>
 
+    <details id="workshop">
+      <summary>Workshop / facilitator tools — scoreboard, worksheet, instructor notes</summary>
+      <div class="workshop-body">
+        <p>Everything below lives only in this browser's local storage — no accounts, no
+          backend, nothing collected about anyone who runs this. A workshop table runs it
+          competitively just by having each person show their own screen.</p>
+
+        <h3>Scoreboard</h3>
+        <p id="scoreboard-summary" class="muted"></p>
+        <ul id="scoreboard-list"></ul>
+        <div class="controls">
+          <button id="scoreboard-reset" type="button" class="secondary">Reset this browser's scoreboard</button>
+        </div>
+
+        <h3>Instructor notes</h3>
+        <p class="muted">Facilitator-only cues per drill — what to point out, what a group
+          often misses. Shown inline under the loaded drill's flags when enabled.</p>
+        <label class="checkbox-label">
+          <input type="checkbox" id="instructor-notes-toggle" />
+          Show instructor notes on the loaded drill
+        </label>
+
+        <h3>Worksheet</h3>
+        <p class="muted">A print-friendly handout listing every drill and its teaching point,
+          with room to write in flag status by hand — for a room that wants a paper trail
+          alongside (or instead of) the screen.</p>
+        <div class="controls">
+          <button id="print-worksheet" type="button" class="secondary">Print the worksheet</button>
+        </div>
+      </div>
+    </details>
+
     <ol class="arc" aria-hidden="true">
       <li><span class="arc-step">2G</span><small>one-way auth</small></li>
       <li class="arc-arrow">→</li>
@@ -47,6 +79,27 @@
   </header>
 
   <main>
+    <section id="course" aria-labelledby="course-heading">
+      <h2 id="course-heading">Guided course</h2>
+      <p class="course-hint">All nine drills, in teaching order, with a line of framing
+        before each one. This is not a separate simulation — “Open this lesson” loads the
+        exact same drill the catalogue below does, so stepping away from the course at any
+        point just leaves you with a drill loaded in the ordinary sandbox.</p>
+
+      <div class="course-progress" role="status" aria-live="polite">
+        <span id="course-position" class="course-position">Lesson 1 of 9</span>
+        <span id="course-completed" class="course-completed">0/9 lessons complete</span>
+      </div>
+
+      <p id="course-framing" class="course-framing"></p>
+
+      <div class="controls course-controls">
+        <button id="course-prev" type="button" class="secondary">← Previous</button>
+        <button id="course-open" type="button">Open this lesson in the sandbox</button>
+        <button id="course-next" type="button" class="secondary">Next →</button>
+      </div>
+    </section>
+
     <section id="catalogue" aria-labelledby="catalogue-heading">
       <h2 id="catalogue-heading">Choose a drill</h2>
       <p class="catalogue-hint">Each generation tries to fix the last one's headline flaw. Every
@@ -88,12 +141,50 @@
         <h3>Flags</h3>
         <ul id="flags" aria-live="polite"></ul>
       </div>
+
+      <div id="instructor-notes" class="panel instructor-notes" hidden>
+        <h3>Instructor notes</h3>
+        <ul id="instructor-notes-list"></ul>
+      </div>
+
+      <details id="tinker" class="panel">
+        <summary>Tinker: step the engine's virtual clock</summary>
+        <div class="tinker-body">
+          <p class="muted">These controls call the engine directly, at whatever point the
+            drill is currently in. <code>step</code> advances the shared virtual clock by
+            microseconds — it does not run or skip the attack. <code>Reload &amp; replay</code>
+            calls <code>load</code> then <code>runAttack</code> again, the same two calls
+            "Reset this drill" then "Run" would make, in one step.</p>
+          <div class="tinker-controls">
+            <label for="step-amount">Advance the clock by</label>
+            <select id="step-amount">
+              <option value="1000">1 ms</option>
+              <option value="10000" selected>10 ms</option>
+              <option value="100000">100 ms</option>
+              <option value="1000000">1 s</option>
+            </select>
+            <button id="step-btn" type="button" class="secondary">Step the clock</button>
+            <button id="replay-btn" type="button" class="secondary">Reload &amp; replay the attack</button>
+          </div>
+          <p id="tinker-readout" class="muted tinker-readout"></p>
+        </div>
+      </details>
     </section>
   </main>
 
   <footer>
     <p>Simulation for defensive education. <a href="https://github.com/holdTheDoorHoid/open-cell-range">Source</a> · GPLv3 · <a href="https://github.com/holdTheDoorHoid/open-cell-range/blob/main/docs/ETHICS.md">Ethics note</a></p>
   </footer>
+
+  <!-- Print-only worksheet: invisible on screen (see the @media print rules in
+       style.css), populated by app.js from the drill catalogue. Not part of the
+       engine seam — it never calls load()/runAttack(), only listScenarios(). -->
+  <section id="worksheet" aria-hidden="true">
+    <h1>Open Cell Range — workshop worksheet</h1>
+    <p>One row per drill, in teaching order. Space to note what you saw and whether the flag
+      was captured, by hand.</p>
+    <ol id="worksheet-list"></ol>
+  </section>
 
   <script type="module" src="js/app.js"></script>
 </body>

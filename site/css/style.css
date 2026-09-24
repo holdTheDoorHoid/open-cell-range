@@ -69,18 +69,34 @@ h1 { margin: 0; font-size: 26px; letter-spacing: .3px; }
 h2 { font-size: 19px; margin: 0 0 6px; }
 .tag { color: var(--muted); margin: 4px 0 16px; }
 
-/* ---- About panel ------------------------------------------------------ */
-#about {
+/* ---- About / Workshop panels ------------------------------------------ */
+#about, #workshop {
   background: var(--panel); border: 1px solid var(--edge); border-radius: 10px;
   padding: 10px 14px; margin-bottom: 18px;
 }
-#about summary {
+#about summary, #workshop summary {
   cursor: pointer; font-weight: 600; padding: 4px 0; list-style: revert;
 }
-#about summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.about-body { margin-top: 8px; max-width: 72ch; }
-.about-body p { color: var(--muted); margin: 0 0 10px; }
-.about-body a { color: var(--accent); }
+#about summary:focus-visible, #workshop summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.about-body, .workshop-body { margin-top: 8px; max-width: 72ch; }
+.about-body p, .workshop-body > p { color: var(--muted); margin: 0 0 10px; }
+.about-body a, .workshop-body a { color: var(--accent); }
+.workshop-body h3 { font-size: 14px; margin: 18px 0 6px; }
+.workshop-body h3:first-of-type { margin-top: 14px; }
+.checkbox-label {
+  display: flex; align-items: center; gap: 8px; margin: 4px 0 14px; cursor: pointer;
+}
+.checkbox-label input { width: 16px; height: 16px; }
+#scoreboard-list { margin: 6px 0 14px; }
+#scoreboard-list li { padding: 7px 0; border-bottom: 1px solid var(--edge); }
+#scoreboard-list li:last-child { border-bottom: none; }
+#scoreboard-list li.captured .flag-badge { background: var(--good-bg); color: var(--good); }
+#scoreboard-list li.not-captured .flag-badge {
+  background: var(--bg); color: var(--muted); border: 1px solid var(--edge);
+}
+#scoreboard-list li.captured b { color: var(--good); }
 
 /* ---- The arc strip (decorative summary of the whole story) ----------- */
 .arc {
@@ -95,8 +111,22 @@ h2 { font-size: 19px; margin: 0 0 6px; }
 .arc small { color: var(--muted); font-size: 11px; margin-top: 3px; }
 .arc-arrow { color: var(--muted); font-size: 16px; padding-bottom: 16px; }
 
+/* ---- Guided course ------------------------------------------------------ */
+#course {
+  margin-bottom: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--edge);
+}
+.course-progress {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 2px 0 10px;
+}
+.course-position { font-weight: 700; }
+.course-completed {
+  color: var(--muted); font-size: 12.5px; background: var(--bg); border: 1px solid var(--edge);
+  border-radius: 999px; padding: 3px 10px;
+}
+.course-framing { max-width: 70ch; margin: 0 0 14px; }
+
 /* ---- Catalogue / scenario groups -------------------------------------- */
-.catalogue-hint { color: var(--muted); max-width: 74ch; margin: 0 0 18px; }
+.catalogue-hint, .course-hint { color: var(--muted); max-width: 74ch; margin: 0 0 18px; }
 
 .track-group { margin-bottom: 20px; }
 .track-group h3 {
@@ -136,12 +166,15 @@ h2 { font-size: 19px; margin: 0 0 6px; }
 .brief { color: var(--muted); max-width: 70ch; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 10px; }
-button#run, button#reset {
+button#run, button#reset, button#course-open, button#course-prev, button#course-next,
+button#scoreboard-reset, button#print-worksheet {
   border-radius: 8px; padding: 10px 18px; cursor: pointer;
   border: 1px solid var(--edge); font-size: 14px; font: inherit;
 }
-button#run { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
-button#run:hover { filter: brightness(1.05); }
+button#run, button#course-open {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700;
+}
+button#run:hover, button#course-open:hover { filter: brightness(1.05); }
 button.secondary { background: transparent; color: var(--ink); }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -206,7 +239,7 @@ code { color: var(--accent); font-size: 12px; font-family: ui-monospace, SFMono-
 .sev-info .sev-badge { background: var(--info-bg); color: var(--info); }
 
 /* ---- Flags ------------------------------------------------------------- */
-.flags { margin-top: 14px; }
+.flags, #instructor-notes, #tinker { margin-top: 14px; }
 .flag-badge {
   display: inline-flex; align-items: center; gap: 4px; font-weight: 700;
   font-size: 12px; padding: 2px 8px; border-radius: 999px; margin-right: 6px;
@@ -215,8 +248,48 @@ code { color: var(--accent); font-size: 12px; font-family: ui-monospace, SFMono-
 #flags li.not-captured .flag-badge { background: var(--bg); color: var(--muted); border: 1px solid var(--edge); }
 #flags li.captured b { color: var(--good); }
 
+/* ---- Instructor notes: a facilitator-only callout, visually distinct from
+   the learner-facing panels above it ------------------------------------- */
+#instructor-notes { border-left: 4px solid var(--accent); }
+#instructor-notes h3 { color: var(--accent); }
+#instructor-notes-list { list-style: disc; padding-left: 20px; }
+#instructor-notes-list li { padding: 3px 0; }
+
+/* ---- Tinker panel: an opt-in <details>, styled like the panels above --- */
+#tinker summary { cursor: pointer; font-weight: 600; list-style: revert; }
+#tinker summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tinker-body { margin-top: 10px; }
+.tinker-body > p { color: var(--muted); max-width: 70ch; }
+.tinker-controls {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0;
+}
+.tinker-controls select {
+  padding: 6px 8px; border-radius: 6px; border: 1px solid var(--edge);
+  background: var(--panel); color: var(--ink); font: inherit; font-size: 13.5px;
+}
+.tinker-controls select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tinker-readout { font-size: 13px; margin: 6px 0 0; }
+
 footer { color: var(--muted); padding: 30px 20px 44px; font-size: 13px; }
 footer a { color: var(--accent); }
+
+/* ---- Print worksheet: hidden on screen, shown only via @media print ---- */
+#worksheet { display: none; }
+
+@media print {
+  body { background: #fff; color: #000; }
+  .skip-link, header, #course, #catalogue, #stage, footer { display: none !important; }
+  #worksheet { display: block !important; max-width: none; padding: 0 24px; }
+  #worksheet h1 { font-size: 20px; margin: 0 0 6px; }
+  #worksheet > p { margin: 0 0 20px; color: #333; }
+  #worksheet-list { list-style: decimal; padding-left: 22px; margin: 0; }
+  #worksheet-list li { break-inside: avoid; margin-bottom: 22px; padding-bottom: 12px; border-bottom: 1px solid #999; }
+  #worksheet-list h2 { font-size: 14px; margin: 0 0 4px; }
+  #worksheet-list h2 small { font-weight: normal; color: #333; }
+  #worksheet-list p { margin: 0 0 6px; font-size: 12.5px; color: #000; }
+  .worksheet-framing { color: #333 !important; }
+  .worksheet-rule { border-bottom: 1px solid #bbb; height: 20px; margin: 0 0 4px; }
+}
 
 /* ---- Mobile ------------------------------------------------------------- */
 @media (max-width: 560px) {
@@ -227,5 +300,8 @@ footer a { color: var(--accent); }
   .arc-step { padding: 5px 12px; font-size: 12px; }
   .arc-arrow { display: none; }
   .controls { flex-direction: column; align-items: stretch; }
-  button#run, button#reset { width: 100%; }
+  .controls button { width: 100%; }
+  .course-progress { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .tinker-controls { flex-direction: column; align-items: stretch; }
+  .tinker-controls select, .tinker-controls button { width: 100%; }
 }

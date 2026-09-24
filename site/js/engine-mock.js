@@ -36,10 +36,14 @@ const CATALOG = [
     brief: 'Mutual auth stops a fake tower serving traffic, but the IMSI still leaks before security starts.' },
   { slug: 'lte-4g-downgrade', title: 'Force a downgrade to 2G', track: '4g',
     brief: 'An unprotected reject pushes the phone off LTE and down to GSM, where the 2G attacks apply.' },
+  { slug: 'lte-4g-paging', title: 'Confirm a target is nearby', track: '4g',
+    brief: 'No rogue cell needed this time. The network pages a subscriber by permanent identity instead of a temporary one — anyone listening confirms exactly who just got paged.' },
   { slug: 'nr-5g-suci-protects', title: 'SUCI does its job', track: '5g',
     brief: 'Ask a 5G phone for its identity. It answers with a SUCI you cannot read. The fix, working.' },
   { slug: 'nr-5g-null-scheme', title: 'Undo SUCI with the null scheme', track: '5g',
     brief: 'A network configured for the null protection scheme sends the SUPI in the clear anyway.' },
+  { slug: 'nr-5g-linkability', title: 'Is this challenge theirs?', track: '5g',
+    brief: 'SUCI still hides the SUPI. Replay a captured authentication challenge anyway — whether the phone fails with "wrong key" or "stale counter" tells you if the challenge was ever hers.' },
   { slug: 'defend-spot-the-catcher', title: 'Spot the catcher', track: 'defend',
     brief: 'Run the passive monitor over an already-attacked world and raise the finding a real detector would.' },
 ];
@@ -199,6 +203,32 @@ const SNAPSHOTS = {
                  hint: 'LTE reject messages travel before integrity protection exists.' } ] },
   ],
 
+  'lte-4g-paging': [
+    { cells: [
+        { id: 10, rat: 'lte', plmn: '310-260', signal_dbm: -74, area_code: 20401 } ],
+      ue: { camped_on: 10, camped_rat: 'lte', imsi_leaked: false, null_cipher_active: false },
+      events: [], findings: [],
+      flags: [ { id: 'presence-confirmed', title: 'Confirm the target is in this cell', captured: false,
+                 hint: 'This one needs no rogue cell at all. Paging happens before any security context exists, so it is never encrypted. If you already have a target’s IMSI, get the real network to page them by it, then watch for the response.' } ] },
+    { cells: [
+        { id: 10, rat: 'lte', plmn: '310-260', signal_dbm: -74, area_code: 20401 } ],
+      ue: { camped_on: 10, camped_rat: 'lte', imsi_leaked: true, null_cipher_active: false },
+      events: [
+        { t_us: 50000, rat: 'lte', cell: 10, dir: 'net_to_ue', msg: 'SystemInformation',
+          summary: 'The home eNodeB broadcasts normal system information. This is the real network throughout — nothing rogue has been stood up.' },
+        { t_us: 160000, rat: 'lte', cell: 10, dir: 'observed', msg: 'InducedContactAttempt',
+          summary: 'The attacker places an ordinary call to the target’s number. That alone is not an attack — it just gives the real network a reason to page the subscriber at a moment the attacker controls.' },
+        { t_us: 200000, rat: 'lte', cell: 10, dir: 'net_to_ue', msg: 'Paging(IMSI)',
+          summary: 'The network pages the phone by its permanent identity rather than a temporary one. Paging travels before any security context exists, so it is never encrypted — anyone listening on the paging channel reads exactly who is being called.' },
+        { t_us: 230000, rat: 'lte', cell: 10, dir: 'ue_to_net', msg: 'PagingResponse',
+          summary: 'The phone answers on the shared random-access channel. Arriving right when the induced call landed, that response confirms this specific subscriber is physically present in this cell, right now — no identity was ever “recovered”, but presence was.' } ],
+      findings: [
+        { kind: 'ImsiPaging', severity: 'Medium', t_us: 200000,
+          detail: 'The network paged this subscriber by permanent identity (IMSI) instead of a temporary one (S-TMSI/GUTI paging would not have named anybody). This is the ToRPEDO/PIERCER presence-confirmation pattern: whoever induced this page now knows the target is in this cell, without needing a rogue tower or a single broken cryptographic primitive.' } ],
+      flags: [ { id: 'presence-confirmed', title: 'Confirm the target is in this cell', captured: true,
+                 hint: 'Paging by IMSI is broadcast in the clear by design — anyone listening confirms presence the moment the phone answers.' } ] },
+  ],
+
   // ---------------------------------------------------------------------
   // Track 3 — 5G / NR: SUCI is the fix — when it isn't configured away.
   // ---------------------------------------------------------------------
@@ -263,6 +293,43 @@ const SNAPSHOTS = {
           detail: 'Cell 16 broadcasts area code 16777215 (0xFFFFFF) — the reserved 24-bit maximum, never assigned on a live NR network.' } ],
       flags: [ { id: 'supi-in-hand', title: 'Recover the SUPI despite SUCI', captured: true,
                  hint: 'SUCI only protects the identity if the protection scheme is non-null.' } ] },
+  ],
+
+  'nr-5g-linkability': [
+    { cells: [
+        { id: 17, rat: 'nr', plmn: '310-260', signal_dbm: -83, area_code: 41102 } ],
+      ue: { camped_on: 17, camped_rat: 'nr', imsi_leaked: false, null_cipher_active: false },
+      events: [], findings: [],
+      flags: [ { id: 'target-linked', title: 'Confirm whether the challenge is hers', captured: false,
+                 hint: 'You don’t need the SUPI for this one — you already have two previously-captured authentication challenges and want to know which subscriber each belongs to. Stand up a rogue cell and replay them.' } ] },
+    { cells: [
+        { id: 17, rat: 'nr', plmn: '310-260', signal_dbm: -83, area_code: 41102 },
+        { id: 27, rat: 'nr', plmn: '310-260', signal_dbm: -37, area_code: 16777215 } ],
+      ue: { camped_on: 27, camped_rat: 'nr', imsi_leaked: false, null_cipher_active: false },
+      events: [
+        { t_us: 50000, rat: 'nr', cell: 17, dir: 'net_to_ue', msg: 'SystemInformation',
+          summary: 'The home gNodeB broadcasts normal system information.' },
+        { t_us: 170000, rat: 'nr', cell: 27, dir: 'net_to_ue', msg: 'SystemInformation',
+          summary: 'A rogue gNodeB broadcasts the same PLMN with a much stronger signal.' },
+        { t_us: 210000, rat: 'nr', cell: 27, dir: 'observed', msg: 'CellReselection',
+          summary: 'The phone reselects onto the stronger cell. SUCI means the rogue network still learns nothing about who just camped on it.' },
+        { t_us: 250000, rat: 'nr', cell: 27, dir: 'net_to_ue', msg: 'AuthenticationRequest(AUTN=candidate-A)',
+          summary: 'The rogue network replays a challenge it captured earlier from a different sighting — “candidate A” — without knowing yet whether it belongs to this phone.' },
+        { t_us: 280000, rat: 'nr', cell: 27, dir: 'ue_to_net', msg: 'AuthenticationFailure(MAC failure)',
+          summary: 'The phone rejects candidate A outright: the MAC does not verify under its key, so this AUTN was never issued for it. Candidate A is not this phone.' },
+        { t_us: 310000, rat: 'nr', cell: 27, dir: 'net_to_ue', msg: 'AuthenticationRequest(AUTN=candidate-B)',
+          summary: 'The rogue network tries a second captured challenge — “candidate B”, believed to belong to the actual target.' },
+        { t_us: 340000, rat: 'nr', cell: 27, dir: 'ue_to_net', msg: 'AuthenticationFailure(synch failure)',
+          summary: 'This time the MAC verifies — the phone really does hold the key that produced candidate B — but the sequence number is stale, so it asks the network to resynchronise instead. The phone never says its SUPI, but it has just confirmed candidate B was issued to it.' } ],
+      findings: [
+        { kind: 'SuspiciousCellPresent', severity: 'Low', t_us: 170000,
+          detail: 'A new cell broadcasting the same network id appeared with an implausibly strong signal, and area code 16777215 (0xFFFFFF) — the reserved 24-bit maximum. Worth watching on its own, not proof of anything yet.' },
+        { kind: 'NetworkAuthenticationFailed', severity: 'High', t_us: 280000,
+          detail: 'The phone reported a MAC failure against candidate A: the far side does not hold this subscriber’s key. On its own this only says a replay or fake network was attempted — not who was being tested.' },
+        { kind: 'LinkabilityProbe', severity: 'Low', t_us: 340000,
+          detail: 'Both a MAC failure and a synch failure were observed from the same phone in this session. A normal attach produces at most one failure type; seeing both is the fingerprint of the AKA failure-message oracle being actively exercised — replaying captured challenges to test which one belongs to this subscriber. Weak alone, but paired with the earlier MAC failure it says candidate B’s challenge was issued to this exact phone, without SUCI ever being broken.' } ],
+      flags: [ { id: 'target-linked', title: 'Confirm whether the challenge is hers', captured: true,
+                 hint: 'A synch failure after a MAC failure means the second challenge really was hers — presence and linkage confirmed, identity never recovered.' } ] },
   ],
 
   // ---------------------------------------------------------------------

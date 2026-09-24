@@ -196,6 +196,8 @@ name = "ocr-attack"
 version = "0.1.0"
 dependencies = [
  "ocr-air",
+ "ocr-crypto",
+ "ocr-detect",
  "ocr-gsm",
  "ocr-identity",
  "ocr-lte",

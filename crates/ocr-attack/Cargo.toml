@@ -11,8 +11,15 @@ default = ["std"]
 std = []
 
 [dependencies]
+ocr-crypto = { workspace = true }
 ocr-identity = { workspace = true }
 ocr-gsm = { workspace = true }
 ocr-lte = { workspace = true }
 ocr-nr = { workspace = true }
 ocr-air = { workspace = true }
+
+[dev-dependencies]
+# Only the tests need this — to assert the matching `ocr-detect` finding appears
+# when a passive monitor observes the air an actor leaves behind (the attack↔
+# detection pairing). The library itself drives the world only through `ocr-air`.
+ocr-detect = { workspace = true }

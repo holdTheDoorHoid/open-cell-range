@@ -1,0 +1,19 @@
+[package]
+name = "ocr-scenario"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Drill definitions and flag predicates for Open Cell Range"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+ocr-identity = { workspace = true }
+ocr-air = { workspace = true }
+ocr-attack = { workspace = true }
+ocr-detect = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

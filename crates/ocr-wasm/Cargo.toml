@@ -1,0 +1,23 @@
+[package]
+name = "ocr-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "The wasm-bindgen surface the Open Cell Range site talks to."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+ocr-identity = { workspace = true }
+ocr-gsm = { workspace = true }
+ocr-lte = { workspace = true }
+ocr-nr = { workspace = true }
+ocr-air = { workspace = true }
+ocr-attack = { workspace = true }
+ocr-detect = { workspace = true }
+ocr-scenario = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+wasm-bindgen = "0.2"

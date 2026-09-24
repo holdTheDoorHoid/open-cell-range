@@ -1,0 +1,15 @@
+[package]
+name = "ocr-gsm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "2G/GSM authentication, ciphering and signalling model for Open Cell Range"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+ocr-identity = { workspace = true }
+ocr-crypto = { workspace = true }

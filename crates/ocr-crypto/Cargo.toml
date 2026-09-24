@@ -1,0 +1,21 @@
+[package]
+name = "ocr-crypto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deterministic cryptographic primitives (MILENAGE, ECIES SUCI, seeded RNG) for Open Cell Range"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+aes = { workspace = true }
+ctr = { workspace = true }
+cmac = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+# The SUCI Profile A curve (x25519-dalek) is added by the crypto implementer when
+# wiring ECIES; it is already available in [workspace.dependencies]. Left out of
+# the baseline so the initial `cargo build` is green with no backend-feature care.

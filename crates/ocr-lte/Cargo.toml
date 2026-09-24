@@ -1,0 +1,15 @@
+[package]
+name = "ocr-lte"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "4G/LTE EPS-AKA, NAS/RRC message subset and security context for Open Cell Range"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+ocr-identity = { workspace = true }
+ocr-crypto = { workspace = true }

@@ -1,0 +1,14 @@
+[package]
+name = "ocr-identity"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Cellular subscriber identifiers (IMSI/SUPI/GUTI/SUCI) and SUCI concealment for Open Cell Range"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+ocr-crypto = { workspace = true }

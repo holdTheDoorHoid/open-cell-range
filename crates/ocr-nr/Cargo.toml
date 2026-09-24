@@ -1,0 +1,15 @@
+[package]
+name = "ocr-nr"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "5G/NR 5G-AKA and SUCI-based attach for Open Cell Range"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+ocr-identity = { workspace = true }
+ocr-crypto = { workspace = true }

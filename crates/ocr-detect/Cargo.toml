@@ -1,0 +1,18 @@
+[package]
+name = "ocr-detect"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Passive Rayhunter-class monitor and findings for Open Cell Range"
+
+[features]
+default = ["std"]
+std = []
+
+[dependencies]
+ocr-identity = { workspace = true }
+ocr-gsm = { workspace = true }
+ocr-lte = { workspace = true }
+ocr-nr = { workspace = true }
+ocr-air = { workspace = true }

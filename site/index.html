@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open Cell Range</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header>
+    <h1>Open Cell Range</h1>
+    <p class="tag">A virtual range for cellular attacks — and for catching them. Nothing here transmits.</p>
+  </header>
+
+  <main>
+    <nav id="scenarios" aria-label="Drills"></nav>
+
+    <section id="stage" hidden>
+      <h2 id="stage-title"></h2>
+      <p id="stage-brief" class="brief"></p>
+
+      <div class="controls">
+        <button id="run">Run the attack</button>
+        <button id="reset" class="secondary">Reset</button>
+      </div>
+
+      <div class="panels">
+        <div class="panel">
+          <h3>The air</h3>
+          <ul id="cells"></ul>
+          <h3>The phone</h3>
+          <div id="ue"></div>
+        </div>
+        <div class="panel">
+          <h3>Messages</h3>
+          <ol id="events"></ol>
+        </div>
+        <div class="panel">
+          <h3>What a monitor sees</h3>
+          <ul id="findings"></ul>
+        </div>
+      </div>
+
+      <div class="panel flags">
+        <h3>Flags</h3>
+        <ul id="flags"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Simulation for defensive education. <a href="https://github.com/holdTheDoorHoid/open-cell-range">Source</a> · GPLv3.</p>
+  </footer>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

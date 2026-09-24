@@ -1,0 +1,51 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/ocr-crypto",
+    "crates/ocr-identity",
+    "crates/ocr-gsm",
+    "crates/ocr-lte",
+    "crates/ocr-nr",
+    "crates/ocr-air",
+    "crates/ocr-attack",
+    "crates/ocr-detect",
+    "crates/ocr-scenario",
+    "crates/ocr-wasm",
+    "crates/ocr-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/holdTheDoorHoid/open-cell-range"
+authors = ["Open Cell Range contributors"]
+
+[workspace.dependencies]
+ocr-crypto = { path = "crates/ocr-crypto" }
+ocr-identity = { path = "crates/ocr-identity" }
+ocr-gsm = { path = "crates/ocr-gsm" }
+ocr-lte = { path = "crates/ocr-lte" }
+ocr-nr = { path = "crates/ocr-nr" }
+ocr-air = { path = "crates/ocr-air" }
+ocr-attack = { path = "crates/ocr-attack" }
+ocr-detect = { path = "crates/ocr-detect" }
+ocr-scenario = { path = "crates/ocr-scenario" }
+
+# Shared third-party deps. Everything here must build on wasm32-unknown-unknown
+# with no access to OS time or OS randomness (see DESIGN.md section 3).
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+aes = "0.8"
+ctr = "0.9"
+cmac = "0.7"
+sha2 = { version = "0.10", default-features = false }
+hmac = { version = "0.12", default-features = false }
+x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
+
+# A profile that keeps the wasm module small; teaching tool, not a hot loop.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"

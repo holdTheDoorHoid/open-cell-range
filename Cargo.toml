@@ -11,6 +11,7 @@ members = [
     "crates/ocr-detect",
     "crates/ocr-scenario",
     "crates/ocr-wasm",
+    "crates/ocr-import",
     "crates/ocr-cli",
 ]
 
@@ -31,6 +32,7 @@ ocr-air = { path = "crates/ocr-air" }
 ocr-attack = { path = "crates/ocr-attack" }
 ocr-detect = { path = "crates/ocr-detect" }
 ocr-scenario = { path = "crates/ocr-scenario" }
+ocr-import = { path = "crates/ocr-import" }
 
 # Shared third-party deps. Everything here must build on wasm32-unknown-unknown
 # with no access to OS time or OS randomness (see DESIGN.md section 3).

@@ -1,0 +1,21 @@
+[package]
+name = "ocr-import"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Import real captures (GSMTAP pcap, native NDJSON) into the Open Cell Range AirEvent stream (the phase-two seam)."
+
+[dependencies]
+# The frozen air surface: AirEvent, Payload, Rat, Direction, CellId.
+ocr-air = { workspace = true }
+# The per-generation message unions the AirEvent payload carries, plus the
+# identity/crypto types the NDJSON mirror (de)serializes. These are needed both to
+# construct AirEvents from a GSMTAP record and to round-trip the native NDJSON.
+ocr-crypto = { workspace = true }
+ocr-identity = { workspace = true }
+ocr-gsm = { workspace = true }
+ocr-lte = { workspace = true }
+ocr-nr = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

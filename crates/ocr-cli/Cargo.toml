@@ -19,5 +19,6 @@ ocr-nr = { workspace = true }
 ocr-air = { workspace = true }
 ocr-detect = { workspace = true }
 ocr-scenario = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
+# The capture reader/writer (native NDJSON + GSMTAP pcap) lives here; the CLI's
+# `ndjson` module re-exports it, so `record`/`replay`/`import` share one format.
+ocr-import = { workspace = true }

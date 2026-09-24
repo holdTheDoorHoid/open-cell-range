@@ -213,11 +213,10 @@ dependencies = [
  "ocr-detect",
  "ocr-gsm",
  "ocr-identity",
+ "ocr-import",
  "ocr-lte",
  "ocr-nr",
  "ocr-scenario",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -257,6 +256,20 @@ name = "ocr-identity"
 version = "0.1.0"
 dependencies = [
  "ocr-crypto",
+]
+
+[[package]]
+name = "ocr-import"
+version = "0.1.0"
+dependencies = [
+ "ocr-air",
+ "ocr-crypto",
+ "ocr-gsm",
+ "ocr-identity",
+ "ocr-lte",
+ "ocr-nr",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

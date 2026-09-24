@@ -25,4 +25,5 @@ jobs:
       - name: Format
         run: cargo fmt --all -- --check
       - name: Build for wasm (no_std discipline)
-        run: cargo build --workspace --target wasm32-unknown-unknown --exclude ocr-cli
+        # ocr-cli and ocr-import are native (std) tools, not part of the wasm engine.
+        run: cargo build --workspace --target wasm32-unknown-unknown --exclude ocr-cli --exclude ocr-import

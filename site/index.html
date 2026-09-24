@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
   <title>Open Cell Range</title>
+  <!-- Empty data-URI icon: suppresses the browser's automatic GET
+       /favicon.ico request, which otherwise 404s and logs a console error
+       on a static host with no favicon file (caught by e2e/smoke.mjs). -->
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -42,14 +46,14 @@
           backend, nothing collected about anyone who runs this. A workshop table runs it
           competitively just by having each person show their own screen.</p>
 
-        <h3>Scoreboard</h3>
+        <h2>Scoreboard</h2>
         <p id="scoreboard-summary" class="muted"></p>
         <ul id="scoreboard-list"></ul>
         <div class="controls">
           <button id="scoreboard-reset" type="button" class="secondary">Reset this browser's scoreboard</button>
         </div>
 
-        <h3>Instructor notes</h3>
+        <h2>Instructor notes</h2>
         <p class="muted">Facilitator-only cues per drill — what to point out, what a group
           often misses. Shown inline under the loaded drill's flags when enabled.</p>
         <label class="checkbox-label">
@@ -57,7 +61,7 @@
           Show instructor notes on the loaded drill
         </label>
 
-        <h3>Worksheet</h3>
+        <h2>Worksheet</h2>
         <p class="muted">A print-friendly handout listing every drill and its teaching point,
           with room to write in flag status by hand — for a room that wants a paper trail
           alongside (or instead of) the screen.</p>
@@ -101,7 +105,7 @@
     </section>
 
     <section id="catalogue" aria-labelledby="catalogue-heading">
-      <h2 id="catalogue-heading">Choose a drill</h2>
+      <h2 id="catalogue-heading" tabindex="-1">Choose a drill</h2>
       <p class="catalogue-hint">Each generation tries to fix the last one's headline flaw. Every
         one still leaks somewhere except where the fix is doing its job — that contrast is the
         point. Drills run the real (simulated) attack against a real (simulated) air; a flag is
@@ -110,7 +114,7 @@
     </section>
 
     <section id="stage" hidden aria-labelledby="stage-title">
-      <h2 id="stage-title"></h2>
+      <h2 id="stage-title" tabindex="-1"></h2>
       <p id="stage-brief" class="brief"></p>
 
       <div class="controls">
@@ -180,7 +184,7 @@
        style.css), populated by app.js from the drill catalogue. Not part of the
        engine seam — it never calls load()/runAttack(), only listScenarios(). -->
   <section id="worksheet" aria-hidden="true">
-    <h1>Open Cell Range — workshop worksheet</h1>
+    <h2>Open Cell Range — workshop worksheet</h2>
     <p>One row per drill, in teaching order. Space to note what you saw and whether the flag
       was captured, by hand.</p>
     <ol id="worksheet-list"></ol>

@@ -17,6 +17,16 @@ import { framingFor, instructorNotesFor } from './curriculum-notes.js';
 const engine = await createEngine();
 const $ = (id) => document.getElementById(id);
 
+// Escape text before it is interpolated into innerHTML. The wasm/mock engines
+// emit a closed label set today, but imported captures (ocr-import) carry
+// free-form message names, so every dynamic string shown in the DOM is escaped
+// as defence-in-depth — a security tool should not have a stored-XSS seam.
+const esc = (s) =>
+  String(s).replace(
+    /[&<>"']/g,
+    (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch],
+  );
+
 // The full catalogue, fetched once. `listScenarios()` returns it in teaching
 // order (ENGINE-API.md), which is also the guided course's lesson order — the
 // course does not maintain a second, separately-hardcoded ordering.
@@ -52,6 +62,12 @@ let currentSlug = null;
 let currentTitle = '';
 let courseIndex = 0;
 
+// Respect the OS/browser's reduced-motion preference for the one animated
+// thing in this UI: the smooth-scroll when a drill loads. Read live (not
+// cached) since a user can flip the OS setting without reloading the page.
+const prefersReducedMotion = () =>
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 function renderScenarios() {
   const host = $('scenario-groups');
   host.innerHTML = '';
@@ -81,9 +97,9 @@ function renderScenarios() {
       b.dataset.slug = s.slug;
       b.setAttribute('aria-pressed', 'false');
       b.innerHTML = `
-        <span class="track-badge track-${s.track}">${TRACK_LABEL[s.track]}</span>
-        <span class="scenario-title">${s.title}</span>
-        <span class="scenario-brief">${s.brief}</span>`;
+        <span class="track-badge track-${esc(s.track)}">${TRACK_LABEL[s.track] || esc(s.track)}</span>
+        <span class="scenario-title">${esc(s.title)}</span>
+        <span class="scenario-brief">${esc(s.brief)}</span>`;
       b.addEventListener('click', () => load(s.slug));
       group.appendChild(b);
     }
@@ -115,17 +131,23 @@ function load(slug) {
   $('stage-brief').textContent = s.brief;
   $('run').textContent = RUN_LABEL[s.track] || 'Run the attack';
   render(snap);
-  $('stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('stage').scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  // Move focus to the newly-shown drill so keyboard and screen-reader users
+  // land on it directly, the same way sighted users' eyes do after the
+  // scroll — rather than leaving focus behind on the catalogue/course
+  // button that was just activated. preventScroll avoids a second, competing
+  // scroll from focus() itself landing on top of the one above.
+  $('stage-title').focus({ preventScroll: true });
 }
 
 function cellItem(c, campedOn) {
   const camped = campedOn === c.id;
   return `<li class="${camped ? 'camped-cell' : ''}">
       <span class="cell-id">cell ${c.id}</span>
-      <span class="cell-rat">${c.rat.toUpperCase()}</span>
-      <span class="cell-plmn">${c.plmn}</span>
-      <span class="cell-signal">${c.signal_dbm} dBm</span>
-      <span class="cell-area">area ${c.area_code}</span>
+      <span class="cell-rat">${esc(c.rat).toUpperCase()}</span>
+      <span class="cell-plmn">${esc(c.plmn)}</span>
+      <span class="cell-signal">${esc(c.signal_dbm)} dBm</span>
+      <span class="cell-area">area ${esc(c.area_code)}</span>
       ${camped ? '<span class="camped-badge">📶 phone camped here</span>' : ''}
     </li>`;
 }
@@ -166,26 +188,26 @@ function render(snap) {
       <li>
         <div class="event-head">
           <code>${(e.t_us / 1000).toFixed(0)} ms</code>
-          <span class="dir dir-${e.dir}">${DIR_LABEL[e.dir] || e.dir}</span>
-          <b>${e.msg}</b>
+          <span class="dir dir-${esc(e.dir)}">${DIR_LABEL[e.dir] || esc(e.dir)}</span>
+          <b>${esc(e.msg)}</b>
         </div>
-        <div class="muted">${e.summary}</div>
+        <div class="muted">${esc(e.summary)}</div>
       </li>`).join('')
     || '<li class="muted">no messages yet — run the drill to see the air log fill in</li>';
 
   $('findings').innerHTML = snap.findings.map((f) => `
-      <li class="sev sev-${f.severity.toLowerCase()}">
-        <span class="sev-badge">${SEVERITY_ICON[f.severity] || ''} ${f.severity}</span>
-        <b>${f.kind}</b>
-        <div class="muted">${f.detail}</div>
+      <li class="sev sev-${esc(f.severity).toLowerCase()}">
+        <span class="sev-badge">${SEVERITY_ICON[f.severity] || ''} ${esc(f.severity)}</span>
+        <b>${esc(f.kind)}</b>
+        <div class="muted">${esc(f.detail)}</div>
       </li>`).join('')
     || '<li class="muted">the monitor has nothing to report yet</li>';
 
   $('flags').innerHTML = snap.flags.map((f) => `
       <li class="${f.captured ? 'captured' : 'not-captured'}">
         <span class="flag-badge">${f.captured ? '✓ Captured' : '○ Not yet'}</span>
-        <b>${f.title}</b>
-        ${f.captured ? '' : `<div class="muted">${f.hint}</div>`}
+        <b>${esc(f.title)}</b>
+        ${f.captured ? '' : `<div class="muted">${esc(f.hint)}</div>`}
       </li>`).join('');
 
   $('status').textContent = statusText(snap);
@@ -323,7 +345,7 @@ $('instructor-notes-toggle').addEventListener('change', (e) => {
 function renderWorksheet() {
   $('worksheet-list').innerHTML = ALL_SCENARIOS.map((s, i) => `
     <li>
-      <h2>${i + 1}. ${s.title} <small>(${TRACK_LABEL[s.track] || s.track})</small></h2>
+      <h3>${i + 1}. ${s.title} <small>(${TRACK_LABEL[s.track] || s.track})</small></h3>
       <p>${s.brief}</p>
       <p class="worksheet-framing">${framingFor(s.slug)}</p>
       <p class="worksheet-line">Flag captured? &#9633; yes &nbsp; &#9633; no &nbsp;&nbsp; Notes:</p>

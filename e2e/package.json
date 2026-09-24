@@ -1,0 +1,12 @@
+{
+  "name": "open-cell-range-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Best-effort E2E smoke test for the Open Cell Range site. See README.md.",
+  "scripts": {
+    "smoke": "node smoke.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.0.0"
+  }
+}
